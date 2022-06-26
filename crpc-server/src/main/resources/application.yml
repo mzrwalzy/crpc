@@ -1,0 +1,9 @@
+crpc:
+  zk:
+    host: 127.0.0.1
+  serialize:
+    protocol: kryo
+  port: 10000
+server:
+  port: 9998
+
