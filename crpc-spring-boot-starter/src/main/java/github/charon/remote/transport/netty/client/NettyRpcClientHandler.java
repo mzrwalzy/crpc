@@ -16,6 +16,7 @@ import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
@@ -24,6 +25,10 @@ public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
     private final String serializeProtocol;
 
     private final ChannelProvider channelProvider;
+
+    private final AtomicInteger writerIdleCount = new AtomicInteger(0);
+
+    private final int MAX_IDLE_COUNT = 10;
 
     public NettyRpcClientHandler(String serializeProtocol) {
         this.unprocessedRequests = SingletonFactory.getInstance(UnprocessedRequests.class);
@@ -35,6 +40,7 @@ public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
      * Read the message transmitted by the server
      */
     @Override
+    @SuppressWarnings("unchecked")
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         try {
             log.info("client receive msg: [{}]", msg);
@@ -45,6 +51,7 @@ public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
                     log.info("heart [{}]", tmp.getData());
                 } else if (messageType == RpcConstants.RESPONSE_TYPE) {
                     RpcResponse<Object> rpcResponse = (RpcResponse<Object>) tmp.getData();
+                    this.writerIdleCount.getAndSet(0);
                     unprocessedRequests.complete(rpcResponse);
                 }
             }
@@ -58,14 +65,33 @@ public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
         if (evt instanceof IdleStateEvent) {
             IdleState state = ((IdleStateEvent) evt).state();
             if (state == IdleState.WRITER_IDLE) {
-                log.info("write idle happen [{}]", ctx.channel().remoteAddress());
-                Channel channel = channelProvider.get((InetSocketAddress) ctx.channel().remoteAddress());
+                InetSocketAddress address = (InetSocketAddress) ctx.channel().remoteAddress();
+                log.info("write idle happen [{}]", address);
+                Channel channel = channelProvider.get(address);
+                if (writerIdleCount.get() > MAX_IDLE_COUNT) {
+                    channel.close();
+                    channelProvider.remove(address);
+                    log.info("[{}] connection closed because too many idle times", address);
+                    return;
+                }
                 RpcMessage rpcMessage = new RpcMessage();
                 rpcMessage.setCodec(SerializationType.getCode(this.serializeProtocol));
                 rpcMessage.setCompress(CompressType.GZIP.getCode());
                 rpcMessage.setMessageType(RpcConstants.HEARTBEAT_REQUEST_TYPE);
                 rpcMessage.setData(RpcConstants.PING);
-                channel.writeAndFlush(rpcMessage).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+                channel.writeAndFlush(rpcMessage).addListener((ChannelFutureListener) future -> {
+                    if (!future.isSuccess()) {
+                        future.channel().close();
+                        channelProvider.remove(address);
+                    } else {
+                        writerIdleCount.getAndIncrement();
+                        if (writerIdleCount.get() > MAX_IDLE_COUNT) {
+                            future.channel().close();
+                            channelProvider.remove(address);
+                            log.info("[{}] connection closed because too many idle times", address);
+                        }
+                    }
+                });
             }
         } else {
             super.userEventTriggered(ctx, evt);
