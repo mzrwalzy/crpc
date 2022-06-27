@@ -3,7 +3,6 @@ package github.charon.remote.transport.netty.server;
 import github.charon.common.enums.CompressType;
 import github.charon.common.enums.RpcResponseCode;
 import github.charon.common.enums.SerializationType;
-import github.charon.common.factory.SingletonFactory;
 import github.charon.remote.constant.RpcConstants;
 import github.charon.remote.dto.RpcMessage;
 import github.charon.remote.dto.RpcRequest;
@@ -16,7 +15,6 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 
 @Slf4j
 public class NettyRpcServerHandler extends ChannelInboundHandlerAdapter {

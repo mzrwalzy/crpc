@@ -1,13 +1,12 @@
 package github.charon.remote.transport.netty.server;
 
-import github.charon.common.factory.SingletonFactory;
 import github.charon.common.utils.IpUtil;
 import github.charon.common.utils.RuntimeUtil;
 import github.charon.common.utils.concurrent.threadpool.ThreadPoolFactoryUtil;
 import github.charon.config.CustomShutdownHook;
 import github.charon.config.RpcServiceConfig;
 import github.charon.provider.ServiceProvider;
-import github.charon.provider.impl.ZkServiceProviderImpl;
+import github.charon.remote.handler.RpcRequestHandler;
 import github.charon.remote.transport.netty.codec.RpcMessageDecoder;
 import github.charon.remote.transport.netty.codec.RpcMessageEncoder;
 import io.netty.bootstrap.ServerBootstrap;
@@ -25,10 +24,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -42,8 +38,7 @@ public class NettyRpcServer {
     private ServiceProvider serviceProvider;
 
     @Autowired
-    private NettyRpcServerHandler nettyRpcServerHandler;
-
+    private RpcRequestHandler rpcRequestHandler;
 
     public NettyRpcServer(String serializeProtocol) {
         this.serializeProtocol = serializeProtocol;
@@ -81,7 +76,7 @@ public class NettyRpcServer {
                             p.addLast(new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
                             p.addLast(new RpcMessageEncoder());
                             p.addLast(new RpcMessageDecoder());
-                            p.addLast(serviceHandlerGroup, nettyRpcServerHandler);
+                            p.addLast(serviceHandlerGroup, new NettyRpcServerHandler(serializeProtocol, rpcRequestHandler));
                         }
                     }
 

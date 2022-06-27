@@ -22,8 +22,6 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -54,7 +52,7 @@ public class NettyRpcClient implements RpcRequestTransport {
                         p.addLast(new IdleStateHandler(0, 5, 0, TimeUnit.SECONDS));
                         p.addLast(new RpcMessageEncoder());
                         p.addLast(new RpcMessageDecoder());
-                        p.addLast(new NettyRpcClientHandler());
+                        p.addLast(new NettyRpcClientHandler(serializeProtocol));
                     }
                 });
         this.serviceDiscovery = serviceDiscovery;

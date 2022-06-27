@@ -14,27 +14,21 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
 
 @Slf4j
-@Component
-public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter implements ApplicationContextAware {
+public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter {
     private final UnprocessedRequests unprocessedRequests;
 
-    private ApplicationContext ac;
+    private final String serializeProtocol;
 
-    @Autowired
-    private NettyRpcClient nettyRpcClient;
+    private final ChannelProvider channelProvider;
 
-    public NettyRpcClientHandler() {
+    public NettyRpcClientHandler(String serializeProtocol) {
         this.unprocessedRequests = SingletonFactory.getInstance(UnprocessedRequests.class);
-//        this.nettyRpcClient =
+        this.channelProvider = SingletonFactory.getInstance(ChannelProvider.class);
+        this.serializeProtocol = serializeProtocol;
     }
 
     /**
@@ -65,9 +59,9 @@ public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter implemen
             IdleState state = ((IdleStateEvent) evt).state();
             if (state == IdleState.WRITER_IDLE) {
                 log.info("write idle happen [{}]", ctx.channel().remoteAddress());
-                Channel channel = nettyRpcClient.getChannel((InetSocketAddress) ctx.channel().remoteAddress());
+                Channel channel = channelProvider.get((InetSocketAddress) ctx.channel().remoteAddress());
                 RpcMessage rpcMessage = new RpcMessage();
-                rpcMessage.setCodec(SerializationType.getCode(nettyRpcClient.getSerializeProtocol()));
+                rpcMessage.setCodec(SerializationType.getCode(this.serializeProtocol));
                 rpcMessage.setCompress(CompressType.GZIP.getCode());
                 rpcMessage.setMessageType(RpcConstants.HEARTBEAT_REQUEST_TYPE);
                 rpcMessage.setData(RpcConstants.PING);
@@ -86,10 +80,5 @@ public class NettyRpcClientHandler extends ChannelInboundHandlerAdapter implemen
         log.error("client catch exception：", cause);
         cause.printStackTrace();
         ctx.close();
-    }
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.ac = applicationContext;
     }
 }

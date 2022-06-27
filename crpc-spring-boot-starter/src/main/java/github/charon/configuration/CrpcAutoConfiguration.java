@@ -42,8 +42,14 @@ public class CrpcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ZkServiceProviderImpl zkServiceProvider() {
-        return new ZkServiceProviderImpl(crpcProperties.getPort(), zkServiceRegistry());
+    public ZkServiceRegistryImpl zkServiceRegistry() {
+        return new ZkServiceRegistryImpl(zookeeperProperties.getHost(), zookeeperProperties.getPort());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ZkServiceProviderImpl zkServiceProvider(ZkServiceRegistryImpl zkServiceRegistry) {
+        return new ZkServiceProviderImpl(crpcProperties.getPort(), zkServiceRegistry);
     }
 
 
@@ -55,20 +61,14 @@ public class CrpcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ZkServiceRegistryImpl zkServiceRegistry() {
-        return new ZkServiceRegistryImpl(zookeeperProperties.getHost(), zookeeperProperties.getPort());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
     public ZkServiceDiscoveryImpl zkServiceDiscovery() {
         return new ZkServiceDiscoveryImpl(zookeeperProperties.getHost(), zookeeperProperties.getPort());
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public NettyRpcClient nettyRpcClient() {
-        return new NettyRpcClient(zkServiceDiscovery(), serializeProperties.getProtocol());
+    public NettyRpcClient nettyRpcClient(ZkServiceDiscoveryImpl zkServiceDiscovery) {
+        return new NettyRpcClient(zkServiceDiscovery, serializeProperties.getProtocol());
     }
 
     @Bean
@@ -85,7 +85,7 @@ public class CrpcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public NettyRpcServerHandler nettyRpcServerHandler() {
-        return new NettyRpcServerHandler(serializeProperties.getProtocol(), rpcRequestHandler());
+    public NettyRpcServerHandler nettyRpcServerHandler(RpcRequestHandler rpcRequestHandler) {
+        return new NettyRpcServerHandler(serializeProperties.getProtocol(), rpcRequestHandler);
     }
 }
