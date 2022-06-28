@@ -19,7 +19,7 @@ import javax.validation.constraints.Pattern;
 @Data
 @ToString
 @Component
-@ConfigurationProperties(prefix = "crpc.zk")
+@ConfigurationProperties(prefix = "crpc.zookeeper")
 @Validated
 public class ZookeeperProperties {
 
